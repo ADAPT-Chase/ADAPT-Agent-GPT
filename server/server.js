@@ -6,6 +6,7 @@ const dotenv = require('dotenv');
 const rateLimit = require('express-rate-limit');
 const swaggerUi = require('swagger-ui-express');
 const promBundle = require('express-prom-bundle');
+const path = require('path');
 const swaggerSpecs = require('./swagger');
 const errorHandler = require('./middleware/errorHandler');
 const sequelize = require('./config/database');
@@ -40,6 +41,9 @@ app.use(metricsMiddleware);
 app.use(cors());
 app.use(express.json());
 
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -56,6 +60,7 @@ const apiVersion = '/api/v1';
 // Routes
 app.use(`${apiVersion}/users`, require('./routes/users'));
 app.use(`${apiVersion}/tasks`, require('./routes/tasks'));
+app.use(`${apiVersion}/uploads`, require('./routes/uploads'));
 
 // Error handling middleware
 app.use(errorHandler);
