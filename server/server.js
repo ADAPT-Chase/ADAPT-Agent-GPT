@@ -3,6 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const rateLimit = require('express-rate-limit');
 const errorHandler = require('./middleware/errorHandler');
+const sequelize = require('./config/database');
 
 dotenv.config();
 
@@ -36,42 +37,20 @@ app.get('/health', (req, res) => {
 // Start server
 const PORT = process.env.PORT || 5001;
 
-function startServer(address) {
-  return new Promise((resolve, reject) => {
-    const server = app.listen(PORT, address, () => {
-      console.log(`Server is running on ${address === '::' ? 'IPv6' : 'IPv4'}: http://${address === '::' ? '[::1]' : 'localhost'}:${PORT}`);
-      resolve(server);
-    });
-
-    server.on('error', (error) => {
-      if (error.code === 'EADDRINUSE') {
-        console.log(`Address ${address}:${PORT} is already in use, skipping...`);
-        resolve(null);
-      } else {
-        reject(error);
-      }
-    });
-  });
-}
-
-async function startServers() {
+async function startServer() {
   try {
-    const server4 = await startServer('0.0.0.0');
-    const server6 = await startServer('::');
+    await sequelize.sync();
+    console.log('Database synced');
 
-    [server4, server6].forEach(server => {
-      if (server) {
-        server.on('error', (error) => {
-          console.error('Server error:', error);
-        });
-      }
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
     });
   } catch (error) {
-    console.error('Error starting servers:', error);
+    console.error('Unable to start server:', error);
   }
 }
 
-startServers();
+startServer();
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
