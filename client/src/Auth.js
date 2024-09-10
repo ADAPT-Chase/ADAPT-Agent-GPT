@@ -1,59 +1,76 @@
 import React, { useState } from 'react';
+import axios from 'axios';
+import './Auth.css';
 
-function Auth({ onAuth }) {
+function Auth({ onLogin }) {
   const [isLogin, setIsLogin] = useState(true);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    password: ''
+  });
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
+
+  const handleInputChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError(null);
+    setMessage(null);
+
     try {
-      // For demonstration purposes, we'll simulate a successful auth for any input
-      // In a real app, you would make an API call to your backend here
-      console.log(`${isLogin ? 'Logging in' : 'Registering'} with:`, { username, password });
-      
-      // Simulate successful authentication
-      localStorage.setItem('token', 'dummy_token');
-      onAuth(true);
+      if (isLogin) {
+        const response = await axios.post('/api/v1/users/login', formData);
+        onLogin(response.data.token);
+      } else {
+        const response = await axios.post('/api/v1/users/register', formData);
+        setMessage(response.data.message);
+      }
     } catch (err) {
-      setError('An error occurred');
+      setError(err.response?.data?.message || 'An error occurred');
     }
   };
 
   return (
     <div className="auth-container">
       <h2>{isLogin ? 'Login' : 'Register'}</h2>
+      {error && <div className="error">{error}</div>}
+      {message && <div className="message">{message}</div>}
       <form onSubmit={handleSubmit}>
-        <div className="input-group">
-          <label htmlFor="username">Username</label>
+        {!isLogin && (
           <input
-            id="username"
             type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            name="username"
+            value={formData.username}
+            onChange={handleInputChange}
+            placeholder="Username"
             required
           />
-        </div>
-        <div className="input-group">
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        <button type="submit" className="auth-button">
-          {isLogin ? 'Login' : 'Register'}
-        </button>
+        )}
+        <input
+          type="email"
+          name="email"
+          value={formData.email}
+          onChange={handleInputChange}
+          placeholder="Email"
+          required
+        />
+        <input
+          type="password"
+          name="password"
+          value={formData.password}
+          onChange={handleInputChange}
+          placeholder="Password"
+          required
+        />
+        <button type="submit">{isLogin ? 'Login' : 'Register'}</button>
       </form>
-      {error && <p className="error-message">{error}</p>}
-      <p className="auth-toggle">
+      <p>
         {isLogin ? "Don't have an account? " : "Already have an account? "}
-        <button onClick={() => setIsLogin(!isLogin)} className="toggle-button">
+        <button onClick={() => setIsLogin(!isLogin)}>
           {isLogin ? 'Register' : 'Login'}
         </button>
       </p>

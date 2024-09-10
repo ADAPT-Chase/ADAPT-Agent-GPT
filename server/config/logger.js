@@ -1,4 +1,4 @@
-const winston = require('winston');
+kconst winston = require('winston');
 const path = require('path');
 
 const logger = winston.createLogger({

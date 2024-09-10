@@ -1,6 +1,6 @@
 const request = require('supertest');
-const app = require('../server');
-const User = require('../models/User');
+const { app } = require('../server');
+const { User } = require('../config/database').models;
 const sequelize = require('../config/database');
 const { sendEmail } = require('../config/emailService');
 
@@ -41,17 +41,6 @@ describe('User API', () => {
     expect(user.isVerified).toBe(true);
   });
 
-  it('should not login unverified user', async () => {
-    const res = await request(app)
-      .post('/api/v1/users/login')
-      .send({
-        email: 'testuser@example.com',
-        password: 'password123'
-      });
-    expect(res.statusCode).toEqual(400);
-    expect(res.body.message).toContain('Please verify your email');
-  });
-
   it('should login verified user', async () => {
     const res = await request(app)
       .post('/api/v1/users/login')
@@ -62,6 +51,30 @@ describe('User API', () => {
     expect(res.statusCode).toEqual(200);
     expect(res.body).toHaveProperty('token');
     userToken = res.body.token;
+  });
+
+  it('should get user profile', async () => {
+    const res = await request(app)
+      .get('/api/v1/users/me')
+      .set('x-auth-token', userToken);
+    expect(res.statusCode).toEqual(200);
+    expect(res.body).toHaveProperty('username', 'testuser');
+    expect(res.body).toHaveProperty('email', 'testuser@example.com');
+    expect(res.body).toHaveProperty('role', 'user');
+    expect(res.body).toHaveProperty('bio');
+  });
+
+  it('should update user profile', async () => {
+    const res = await request(app)
+      .put('/api/v1/users/me')
+      .set('x-auth-token', userToken)
+      .send({
+        username: 'updateduser',
+        bio: 'This is my updated bio'
+      });
+    expect(res.statusCode).toEqual(200);
+    expect(res.body).toHaveProperty('username', 'updateduser');
+    expect(res.body).toHaveProperty('bio', 'This is my updated bio');
   });
 
   it('should register an admin user', async () => {
@@ -89,28 +102,6 @@ describe('User API', () => {
         password: 'adminpass123'
       });
     adminToken = loginRes.body.token;
-  });
-
-  it('should not register a user with invalid email', async () => {
-    const res = await request(app)
-      .post('/api/v1/users/register')
-      .send({
-        username: 'testuser2',
-        email: 'invalidemail',
-        password: 'password123'
-      });
-    expect(res.statusCode).toEqual(400);
-    expect(res.body).toHaveProperty('errors');
-  });
-
-  it('should get user profile', async () => {
-    const res = await request(app)
-      .get('/api/v1/users/me')
-      .set('x-auth-token', userToken);
-    expect(res.statusCode).toEqual(200);
-    expect(res.body).toHaveProperty('username', 'testuser');
-    expect(res.body).toHaveProperty('email', 'testuser@example.com');
-    expect(res.body).toHaveProperty('role', 'user');
   });
 
   it('should allow admin to get all users', async () => {

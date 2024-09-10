@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import './TaskManager.css';
 
 function TaskManager() {
   const [tasks, setTasks] = useState([]);
-  const [newTask, setNewTask] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [newTask, setNewTask] = useState({ title: '', description: '', status: 'pending' });
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchTasks();
@@ -13,103 +13,95 @@ function TaskManager() {
 
   const fetchTasks = async () => {
     try {
-      setLoading(true);
-      setError('');
-      const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:8000/tasks', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setTasks(response.data.tasks);
-    } catch (error) {
-      setError('Error fetching tasks: ' + error.message);
-    } finally {
-      setLoading(false);
+      const response = await axios.get('/api/v1/tasks');
+      setTasks(response.data);
+    } catch (err) {
+      setError('Error fetching tasks');
+      console.error(err);
     }
   };
 
-  const addTask = async () => {
-    if (!newTask.trim()) {
-      setError('Task cannot be empty');
-      return;
-    }
+  const handleInputChange = (e) => {
+    setNewTask({ ...newTask, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      setError('');
-      const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:8000/tasks', 
-        { description: newTask },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await axios.post('/api/v1/tasks', newTask);
       setTasks([...tasks, response.data]);
-      setNewTask('');
-    } catch (error) {
-      setError('Error adding task: ' + error.message);
+      setNewTask({ title: '', description: '', status: 'pending' });
+    } catch (err) {
+      setError('Error creating task');
+      console.error(err);
     }
   };
 
-  const updateTask = async (taskId, completed) => {
+  const handleStatusChange = async (taskId, newStatus) => {
     try {
-      setError('');
-      const token = localStorage.getItem('token');
-      const task = tasks.find(t => t.id === taskId);
-      const updatedTask = { ...task, completed };
-      await axios.put(`http://localhost:8000/tasks/${taskId}`, 
-        updatedTask,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setTasks(tasks.map(t => t.id === taskId ? updatedTask : t));
-    } catch (error) {
-      setError('Error updating task: ' + error.message);
+      const response = await axios.put(`/api/v1/tasks/${taskId}`, { status: newStatus });
+      setTasks(tasks.map(task => task.id === taskId ? response.data : task));
+    } catch (err) {
+      setError('Error updating task');
+      console.error(err);
     }
   };
 
-  const deleteTask = async (taskId) => {
+  const handleDelete = async (taskId) => {
     try {
-      setError('');
-      const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:8000/tasks/${taskId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.delete(`/api/v1/tasks/${taskId}`);
       setTasks(tasks.filter(task => task.id !== taskId));
-    } catch (error) {
-      setError('Error deleting task: ' + error.message);
+    } catch (err) {
+      setError('Error deleting task');
+      console.error(err);
     }
   };
-
-  if (loading) {
-    return <div className="task-manager-loading">Loading tasks...</div>;
-  }
 
   return (
     <div className="task-manager">
       <h2>Task Manager</h2>
-      <div className="new-task-form">
+      {error && <div className="error">{error}</div>}
+      <form onSubmit={handleSubmit}>
         <input
           type="text"
-          value={newTask}
-          onChange={(e) => setNewTask(e.target.value)}
-          placeholder="Enter a new task"
-          className="new-task-input"
+          name="title"
+          value={newTask.title}
+          onChange={handleInputChange}
+          placeholder="Task title"
+          required
         />
-        <button onClick={addTask} className="add-task-button">Add Task</button>
-      </div>
-      {error && <p className="error-message">{error}</p>}
+        <textarea
+          name="description"
+          value={newTask.description}
+          onChange={handleInputChange}
+          placeholder="Task description"
+        />
+        <select name="status" value={newTask.status} onChange={handleInputChange}>
+          <option value="pending">Pending</option>
+          <option value="in_progress">In Progress</option>
+          <option value="completed">Completed</option>
+        </select>
+        <button type="submit">Add Task</button>
+      </form>
       <ul className="task-list">
         {tasks.map(task => (
-          <li key={task.id} className="task-item">
-            <input
-              type="checkbox"
-              checked={task.completed}
-              onChange={(e) => updateTask(task.id, e.target.checked)}
-              className="task-checkbox"
-            />
-            <span className={task.completed ? 'task-completed' : ''}>
-              {task.description}
-            </span>
-            <button onClick={() => deleteTask(task.id)} className="delete-task-button">Delete</button>
+          <li key={task.id} className={`task-item ${task.status}`}>
+            <h3>{task.title}</h3>
+            <p>{task.description}</p>
+            <div className="task-actions">
+              <select
+                value={task.status}
+                onChange={(e) => handleStatusChange(task.id, e.target.value)}
+              >
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
+              <button onClick={() => handleDelete(task.id)}>Delete</button>
+            </div>
           </li>
         ))}
       </ul>
-      {tasks.length === 0 && <p className="no-tasks-message">No tasks available. Add a new task to get started!</p>}
     </div>
   );
 }

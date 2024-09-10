@@ -1,21 +1,26 @@
 const request = require('supertest');
-const app = require('../server');
-const User = require('../models/User');
-const Task = require('../models/Task');
+const { app } = require('../server');
+const { User, Task } = require('../config/database').models;
 const sequelize = require('../config/database');
 
 let authToken;
 
 beforeAll(async () => {
   await sequelize.sync({ force: true });
-  // Create a test user and get auth token
-  const userRes = await request(app)
-    .post('/api/v1/users/register')
+  // Create a test user
+  const user = await User.create({
+    username: 'taskuser',
+    email: 'taskuser@example.com',
+    password: 'password123',
+    isVerified: true
+  });
+  const response = await request(app)
+    .post('/api/v1/users/login')
     .send({
-      username: 'taskuser',
+      email: 'taskuser@example.com',
       password: 'password123'
     });
-  authToken = userRes.body.token;
+  authToken = response.body.token;
 });
 
 describe('Task API', () => {
@@ -28,6 +33,7 @@ describe('Task API', () => {
         description: 'This is a test task',
         status: 'pending'
       });
+    
     expect(res.statusCode).toEqual(201);
     expect(res.body).toHaveProperty('title', 'Test Task');
   });
@@ -40,14 +46,16 @@ describe('Task API', () => {
         description: 'This is a test task',
         status: 'pending'
       });
+    
     expect(res.statusCode).toEqual(400);
-    expect(res.body).toHaveProperty('errors');
+    expect(res.body.error.code).toEqual('VALIDATION_ERROR');
   });
 
   it('should get all tasks for the user', async () => {
     const res = await request(app)
       .get('/api/v1/tasks')
       .set('x-auth-token', authToken);
+    
     expect(res.statusCode).toEqual(200);
     expect(Array.isArray(res.body)).toBeTruthy();
     expect(res.body.length).toBeGreaterThan(0);
@@ -75,6 +83,19 @@ describe('Task API', () => {
     expect(updateRes.body).toHaveProperty('status', 'completed');
   });
 
+  it('should not update a non-existent task', async () => {
+    const res = await request(app)
+      .put('/api/v1/tasks/999999')
+      .set('x-auth-token', authToken)
+      .send({
+        title: 'Updated Task',
+        status: 'completed'
+      });
+    
+    expect(res.statusCode).toEqual(404);
+    expect(res.body.error.code).toEqual('TASK_NOT_FOUND');
+  });
+
   it('should delete a task', async () => {
     const createRes = await request(app)
       .post('/api/v1/tasks')
@@ -90,6 +111,15 @@ describe('Task API', () => {
     
     expect(deleteRes.statusCode).toEqual(200);
     expect(deleteRes.body).toHaveProperty('message', 'Task removed');
+  });
+
+  it('should not delete a non-existent task', async () => {
+    const res = await request(app)
+      .delete('/api/v1/tasks/999999')
+      .set('x-auth-token', authToken);
+    
+    expect(res.statusCode).toEqual(404);
+    expect(res.body.error.code).toEqual('TASK_NOT_FOUND');
   });
 });
 

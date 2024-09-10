@@ -1,110 +1,53 @@
 const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
 const cors = require('cors');
-const dotenv = require('dotenv');
-const rateLimit = require('express-rate-limit');
+const { errorHandler } = require('./middleware/errorHandler');
+const userRoutes = require('./routes/users');
+const taskRoutes = require('./routes/tasks');
+const agentRoutes = require('./routes/agents');
+const projectRoutes = require('./routes/projects');
+const knowledgeRoutes = require('./routes/knowledge');
+const { sequelize } = require('./config/database');
 const swaggerUi = require('swagger-ui-express');
-const promBundle = require('express-prom-bundle');
-const path = require('path');
-const swaggerSpecs = require('./swagger');
-const errorHandler = require('./middleware/errorHandler');
-const sequelize = require('./config/database');
-const socketHandlers = require('./socketHandlers');
-const logger = require('./config/logger');
-
-dotenv.config();
+const swaggerDocument = require('./swagger');
+const { setupMetrics } = require('./metrics');
 
 const app = express();
-const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
-  },
-});
-
-// Prometheus metrics
-const metricsMiddleware = promBundle({
-  includeMethod: true,
-  includePath: true,
-  includeStatusCode: true,
-  includeUp: true,
-  customLabels: { project_name: 'adapt-agent-gpt' },
-  promClient: {
-    collectDefaultMetrics: {},
-  },
-});
 
 // Middleware
-app.use(metricsMiddleware);
 app.use(cors());
 app.use(express.json());
 
-// Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
-});
-app.use(limiter);
-
-// API documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
-
-// API versioning
-const apiVersion = '/api/v1';
+// Setup Prometheus metrics
+setupMetrics(app);
 
 // Routes
-app.use(`${apiVersion}/users`, require('./routes/users'));
-app.use(`${apiVersion}/tasks`, require('./routes/tasks'));
-app.use(`${apiVersion}/uploads`, require('./routes/uploads'));
+app.use('/api/users', userRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/agents', agentRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/knowledge', knowledgeRoutes);
+
+// Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Error handling middleware
 app.use(errorHandler);
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK' });
-});
-
-// WebSocket handlers
-socketHandlers(io);
-
-// Start server
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 
 async function startServer() {
   try {
-    await sequelize.sync();
-    logger.info('Database synced');
-
-    server.listen(PORT, () => {
-      logger.info(`Server is running on port ${PORT}`);
-      logger.info(`API documentation available at http://localhost:${PORT}/api-docs`);
-      logger.info(`Metrics available at http://localhost:${PORT}/metrics`);
+    await sequelize.authenticate();
+    console.log('Database connection has been established successfully.');
+    
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
     });
   } catch (error) {
-    logger.error('Unable to start server:', error);
+    console.error('Unable to connect to the database:', error);
   }
 }
 
 startServer();
 
-// Monitoring
-setInterval(() => {
-  const used = process.memoryUsage();
-  logger.info(`Memory usage: ${JSON.stringify(used)}`);
-}, 300000); // Log every 5 minutes
-
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
-process.on('uncaughtException', (error) => {
-  logger.error('Uncaught Exception:', error);
-});
-
-module.exports = { app, server, io }; // Export for testing
+module.exports = app; // For testing purposes

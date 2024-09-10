@@ -1,83 +1,85 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
+import './Dashboard.css';
 
 function Dashboard() {
-  const [stats, setStats] = useState({
-    totalTasks: 0,
-    completedTasks: 0,
-    pendingTasks: 0,
-    analysisRequests: 0,
-    codeGenerationRequests: 0,
-    questionAnsweringRequests: 0
+  const [taskSummary, setTaskSummary] = useState({
+    total: 0,
+    pending: 0,
+    inProgress: 0,
+    completed: 0
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [recentTasks, setRecentTasks] = useState([]);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchDashboardStats();
+    fetchDashboardData();
   }, []);
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardData = async () => {
     try {
-      setLoading(true);
-      setError('');
-      const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:8000/dashboard', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setStats(response.data);
-    } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
-      setError('Failed to fetch dashboard statistics. Please try again later.');
-    } finally {
-      setLoading(false);
+      const tasksResponse = await axios.get('/api/v1/tasks');
+      const tasks = tasksResponse.data;
+
+      // Calculate task summary
+      const summary = tasks.reduce((acc, task) => {
+        acc.total++;
+        acc[task.status]++;
+        return acc;
+      }, { total: 0, pending: 0, in_progress: 0, completed: 0 });
+
+      setTaskSummary(summary);
+
+      // Get 5 most recent tasks
+      const sortedTasks = tasks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setRecentTasks(sortedTasks.slice(0, 5));
+    } catch (err) {
+      setError('Error fetching dashboard data');
+      console.error(err);
     }
   };
 
-  if (loading) {
-    return <div className="dashboard-loading">Loading dashboard statistics...</div>;
-  }
-
   if (error) {
-    return <div className="dashboard-error">{error}</div>;
+    return <div className="error">{error}</div>;
   }
 
   return (
     <div className="dashboard">
       <h2>Dashboard</h2>
-      <div className="stats-container">
-        <div className="stat-card">
-          <h3>Tasks Overview</h3>
-          <div className="stat-item">
-            <span className="stat-label">Total Tasks:</span>
-            <span className="stat-value">{stats.totalTasks}</span>
+      <div className="task-summary">
+        <h3>Task Summary</h3>
+        <div className="summary-items">
+          <div className="summary-item">
+            <span className="label">Total Tasks:</span>
+            <span className="value">{taskSummary.total}</span>
           </div>
-          <div className="stat-item">
-            <span className="stat-label">Completed Tasks:</span>
-            <span className="stat-value">{stats.completedTasks}</span>
+          <div className="summary-item">
+            <span className="label">Pending:</span>
+            <span className="value">{taskSummary.pending}</span>
           </div>
-          <div className="stat-item">
-            <span className="stat-label">Pending Tasks:</span>
-            <span className="stat-value">{stats.pendingTasks}</span>
+          <div className="summary-item">
+            <span className="label">In Progress:</span>
+            <span className="value">{taskSummary.in_progress}</span>
           </div>
-        </div>
-        <div className="stat-card">
-          <h3>AgentGPT Requests</h3>
-          <div className="stat-item">
-            <span className="stat-label">Analysis:</span>
-            <span className="stat-value">{stats.analysisRequests}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">Code Generation:</span>
-            <span className="stat-value">{stats.codeGenerationRequests}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">Question Answering:</span>
-            <span className="stat-value">{stats.questionAnsweringRequests}</span>
+          <div className="summary-item">
+            <span className="label">Completed:</span>
+            <span className="value">{taskSummary.completed}</span>
           </div>
         </div>
       </div>
-      <button className="refresh-button" onClick={fetchDashboardStats}>Refresh Stats</button>
+      <div className="recent-tasks">
+        <h3>Recent Tasks</h3>
+        <ul>
+          {recentTasks.map(task => (
+            <li key={task.id} className={`task-item ${task.status}`}>
+              <span className="task-title">{task.title}</span>
+              <span className="task-status">{task.status}</span>
+            </li>
+          ))}
+        </ul>
+        <Link to="/tasks" className="view-all-tasks">View All Tasks</Link>
+      </div>
     </div>
   );
 }

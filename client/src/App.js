@@ -1,77 +1,61 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import './App.css';
-import Auth from './Auth';
-import AgentInterface from './AgentInterface';
-import TaskManager from './TaskManager';
-import Dashboard from './Dashboard';
+import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
+import axios from 'axios';
 import NavBar from './NavBar';
+import Dashboard from './Dashboard';
+import TaskManager from './TaskManager';
+import Auth from './Auth';
+import ProtectedRoute from './components/ProtectedRoute';
+import UserProfile from './components/UserProfile';
+import './App.css';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        // In a real app, you would verify the token with your backend here
-        setIsAuthenticated(true);
-      }
-      setLoading(false);
-    };
-    checkAuth();
+    const token = localStorage.getItem('token');
+    if (token) {
+      axios.defaults.headers.common['x-auth-token'] = token;
+      fetchUserProfile();
+    }
   }, []);
 
-  const handleAuthentication = (status) => {
-    setIsAuthenticated(status);
-    if (status) {
-      localStorage.setItem('token', 'dummy_token'); // In a real app, store the actual token
+  const fetchUserProfile = async () => {
+    try {
+      const res = await axios.get('/api/v1/users/me');
+      setUser(res.data);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      setIsAuthenticated(false);
+      localStorage.removeItem('token');
     }
+  };
+
+  const handleLogin = (token) => {
+    localStorage.setItem('token', token);
+    axios.defaults.headers.common['x-auth-token'] = token;
+    fetchUserProfile();
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    delete axios.defaults.headers.common['x-auth-token'];
     setIsAuthenticated(false);
+    setUser(null);
   };
-
-  if (loading) {
-    return <div className="loading">Loading...</div>;
-  }
 
   return (
     <Router>
       <div className="App">
-        {isAuthenticated && <NavBar onLogout={handleLogout} />}
-        <main className="App-main">
-          <Routes>
-            <Route path="/login" element={
-              isAuthenticated ? <Navigate to="/dashboard" replace /> : <Auth onAuth={handleAuthentication} />
-            } />
-            <Route
-              path="/dashboard"
-              element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" replace />}
-            />
-            <Route
-              path="/agent"
-              element={isAuthenticated ? <AgentInterface /> : <Navigate to="/login" replace />}
-            />
-            <Route
-              path="/tasks"
-              element={isAuthenticated ? <TaskManager /> : <Navigate to="/login" replace />}
-            />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={
-              <div className="not-found">
-                <h2>404 - Page Not Found</h2>
-                <p>The page you are looking for does not exist.</p>
-              </div>
-            } />
-          </Routes>
-        </main>
-        <footer className="App-footer">
-          <p>&copy; 2024 ADAPT-Agent-GPT</p>
-        </footer>
+        <NavBar isAuthenticated={isAuthenticated} onLogout={handleLogout} user={user} />
+        <Switch>
+          <Route exact path="/" render={() => isAuthenticated ? <Redirect to="/dashboard" /> : <Auth onLogin={handleLogin} />} />
+          <ProtectedRoute path="/dashboard" component={Dashboard} isAuthenticated={isAuthenticated} />
+          <ProtectedRoute path="/tasks" component={TaskManager} isAuthenticated={isAuthenticated} />
+          <ProtectedRoute path="/profile" component={UserProfile} isAuthenticated={isAuthenticated} user={user} />
+        </Switch>
       </div>
     </Router>
   );

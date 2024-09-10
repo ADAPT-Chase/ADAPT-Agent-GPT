@@ -1,0 +1,136 @@
+[
+    {
+        "id": "e9a2c35e.3e65d",
+        "type": "tab",
+        "label": "ADAPT-Agent-GPT Monitoring",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "f6f2187d.f17ca8",
+        "type": "http request",
+        "z": "e9a2c35e.3e65d",
+        "name": "Get Metrics",
+        "method": "GET",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "http://localhost:5001/metrics",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 320,
+        "y": 120,
+        "wires": [
+            [
+                "d5b39e5a.9e916"
+            ]
+        ]
+    },
+    {
+        "id": "d5b39e5a.9e916",
+        "type": "function",
+        "z": "e9a2c35e.3e65d",
+        "name": "Parse Metrics",
+        "func": "const lines = msg.payload.split('\\n');\nconst metrics = {};\n\nlines.forEach(line => {\n    if (!line.startsWith('#')) {\n        const [key, value] = line.split(' ');\n        metrics[key] = parseFloat(value);\n    }\n});\n\nmsg.payload = metrics;\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 520,
+        "y": 120,
+        "wires": [
+            [
+                "a7b30e7a.cb877"
+            ]
+        ]
+    },
+    {
+        "id": "a7b30e7a.cb877",
+        "type": "switch",
+        "z": "e9a2c35e.3e65d",
+        "name": "Check Thresholds",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "gte",
+                "v": "90",
+                "vt": "num"
+            },
+            {
+                "t": "gte",
+                "v": "50",
+                "vt": "num"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 2,
+        "x": 730,
+        "y": 120,
+        "wires": [
+            [
+                "c9b7c7d3.9f9b68"
+            ],
+            [
+                "f9b7c7d3.9f9b68"
+            ]
+        ]
+    },
+    {
+        "id": "c9b7c7d3.9f9b68",
+        "type": "e-mail",
+        "z": "e9a2c35e.3e65d",
+        "server": "smtp.gmail.com",
+        "port": "465",
+        "secure": true,
+        "name": "Send Critical Alert",
+        "dname": "Send Critical Alert",
+        "x": 950,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "f9b7c7d3.9f9b68",
+        "type": "e-mail",
+        "z": "e9a2c35e.3e65d",
+        "server": "smtp.gmail.com",
+        "port": "465",
+        "secure": true,
+        "name": "Send Warning Alert",
+        "dname": "Send Warning Alert",
+        "x": 960,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "b6f2187d.f17ca8",
+        "type": "inject",
+        "z": "e9a2c35e.3e65d",
+        "name": "Every 5 minutes",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "300",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 140,
+        "y": 120,
+        "wires": [
+            [
+                "f6f2187d.f17ca8"
+            ]
+        ]
+    }
+]

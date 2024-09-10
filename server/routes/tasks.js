@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { body, param, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
-const Task = require('../models/Task');
+const { Task, User } = require('../config/database').models;
 const cache = require('../config/cache');
 const logger = require('../config/logger');
+const CustomError = require('../utils/CustomError');
 
 const validateTask = [
   body('title').notEmpty().withMessage('Title is required'),
@@ -16,30 +17,29 @@ const validateTask = [
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    throw new CustomError('Validation failed', 400, 'VALIDATION_ERROR');
   }
   next();
 };
 
-router.get('/', auth, async (req, res) => {
+router.get('/', auth, async (req, res, next) => {
   try {
     const cacheKey = `tasks:${req.user.id}`;
     const cachedTasks = await cache.get(cacheKey);
 
     if (cachedTasks) {
-      return res.json(cachedTasks);
+      return res.json(JSON.parse(cachedTasks));
     }
 
     const tasks = await Task.findAll({ where: { userId: req.user.id } });
-    await cache.set(cacheKey, tasks, 300); // Cache for 5 minutes
+    await cache.set(cacheKey, JSON.stringify(tasks), 300); // Cache for 5 minutes
     res.json(tasks);
   } catch (err) {
-    logger.error('Error fetching tasks:', err);
-    res.status(500).json({ message: 'Server error' });
+    next(err);
   }
 });
 
-router.post('/', [auth, validateTask, handleValidationErrors], async (req, res) => {
+router.post('/', [auth, validateTask, handleValidationErrors], async (req, res, next) => {
   try {
     const { title, description, status, dueDate } = req.body;
     const task = await Task.create({
@@ -49,11 +49,10 @@ router.post('/', [auth, validateTask, handleValidationErrors], async (req, res) 
       dueDate,
       userId: req.user.id
     });
-    await cache.set(`tasks:${req.user.id}`, null);
+    await cache.del(`tasks:${req.user.id}`);
     res.status(201).json(task);
   } catch (err) {
-    logger.error('Error creating task:', err);
-    res.status(500).json({ message: 'Server error' });
+    next(err);
   }
 });
 
@@ -62,19 +61,18 @@ router.put('/:id', [
   param('id').isInt().withMessage('Invalid task ID'),
   validateTask,
   handleValidationErrors
-], async (req, res) => {
+], async (req, res, next) => {
   try {
     const task = await Task.findOne({ where: { id: req.params.id, userId: req.user.id } });
     if (!task) {
-      return res.status(404).json({ message: 'Task not found' });
+      throw new CustomError('Task not found', 404, 'TASK_NOT_FOUND');
     }
     const { title, description, status, dueDate } = req.body;
     await task.update({ title, description, status, dueDate });
-    await cache.set(`tasks:${req.user.id}`, null);
+    await cache.del(`tasks:${req.user.id}`);
     res.json(task);
   } catch (err) {
-    logger.error('Error updating task:', err);
-    res.status(500).json({ message: 'Server error' });
+    next(err);
   }
 });
 
@@ -82,18 +80,17 @@ router.delete('/:id', [
   auth,
   param('id').isInt().withMessage('Invalid task ID'),
   handleValidationErrors
-], async (req, res) => {
+], async (req, res, next) => {
   try {
     const task = await Task.findOne({ where: { id: req.params.id, userId: req.user.id } });
     if (!task) {
-      return res.status(404).json({ message: 'Task not found' });
+      throw new CustomError('Task not found', 404, 'TASK_NOT_FOUND');
     }
     await task.destroy();
-    await cache.set(`tasks:${req.user.id}`, null);
+    await cache.del(`tasks:${req.user.id}`);
     res.json({ message: 'Task removed' });
   } catch (err) {
-    logger.error('Error deleting task:', err);
-    res.status(500).json({ message: 'Server error' });
+    next(err);
   }
 });
 

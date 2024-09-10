@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - staging
 
 jobs:
   build-and-test:
@@ -26,15 +27,34 @@ jobs:
         CI: true
         JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
-  deploy:
+  deploy-staging:
     needs: build-and-test
+    if: github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Deploy to Heroku
+    - name: Deploy to Heroku Staging
       uses: akhileshns/heroku-deploy@v3.12.12
       with:
         heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-        heroku_app_name: "your-heroku-app-name"
+        heroku_app_name: "your-staging-app-name"
         heroku_email: "your-email@example.com"
         appdir: "Projects/ADAPT-Agent-GPT/server"
+      env:
+        HD_NODE_ENV: staging
+
+  deploy-production:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Deploy to Heroku Production
+      uses: akhileshns/heroku-deploy@v3.12.12
+      with:
+        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+        heroku_app_name: "your-production-app-name"
+        heroku_email: "your-email@example.com"
+        appdir: "Projects/ADAPT-Agent-GPT/server"
+      env:
+        HD_NODE_ENV: production

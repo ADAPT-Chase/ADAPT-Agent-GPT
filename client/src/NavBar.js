@@ -1,26 +1,36 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import './NavBar.css';
 
-function NavBar({ onLogout }) {
-  const location = useLocation();
-
+function NavBar({ isAuthenticated, onLogout, user }) {
   return (
     <nav className="navbar">
-      <div className="navbar-brand">
-        <Link to="/dashboard">ADAPT-Agent-GPT</Link>
-      </div>
-      <div className="navbar-links">
-        <Link to="/dashboard" className={location.pathname === '/dashboard' ? 'active' : ''}>
-          Dashboard
-        </Link>
-        <Link to="/agent" className={location.pathname === '/agent' ? 'active' : ''}>
-          Agent Interface
-        </Link>
-        <Link to="/tasks" className={location.pathname === '/tasks' ? 'active' : ''}>
-          Task Manager
-        </Link>
-        <button onClick={onLogout} className="logout-button">Logout</button>
-      </div>
+      <div className="navbar-brand">ADAPT-Agent-GPT</div>
+      <ul className="navbar-nav">
+        {isAuthenticated ? (
+          <>
+            <li className="nav-item">
+              <Link to="/dashboard">Dashboard</Link>
+            </li>
+            <li className="nav-item">
+              <Link to="/tasks">Tasks</Link>
+            </li>
+            <li className="nav-item">
+              <Link to="/profile">Profile</Link>
+            </li>
+            <li className="nav-item">
+              <span className="user-info">Welcome, {user?.username}</span>
+            </li>
+            <li className="nav-item">
+              <button onClick={onLogout} className="logout-button">Logout</button>
+            </li>
+          </>
+        ) : (
+          <li className="nav-item">
+            <Link to="/">Login / Register</Link>
+          </li>
+        )}
+      </ul>
     </nav>
   );
 }
