@@ -1,0 +1,40 @@
+name: Continuous Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14.x'
+    - name: Install dependencies
+      run: |
+        cd Projects/ADAPT-Agent-GPT/server
+        npm ci
+    - name: Run tests
+      run: |
+        cd Projects/ADAPT-Agent-GPT/server
+        npm test
+      env:
+        CI: true
+        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Deploy to Heroku
+      uses: akhileshns/heroku-deploy@v3.12.12
+      with:
+        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+        heroku_app_name: "your-heroku-app-name"
+        heroku_email: "your-email@example.com"
+        appdir: "Projects/ADAPT-Agent-GPT/server"
