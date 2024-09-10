@@ -53,48 +53,64 @@ function AgentInterface() {
   return (
     <div className="agent-interface">
       <h2>AgentGPT Interface</h2>
-      <div>
+      <div className="agent-interface-section">
         <h3>Task Analysis</h3>
-        <input
-          type="text"
-          value={task}
-          onChange={(e) => setTask(e.target.value)}
-          placeholder="Enter a task to analyze"
-        />
-        <button onClick={analyzeTask} disabled={loading}>Analyze Task</button>
+        <div className="input-group">
+          <input
+            type="text"
+            value={task}
+            onChange={(e) => setTask(e.target.value)}
+            placeholder="Enter a task to analyze"
+            className="agent-input"
+          />
+          <button onClick={analyzeTask} disabled={loading} className="agent-button">
+            Analyze Task
+          </button>
+        </div>
       </div>
-      <div>
+      <div className="agent-interface-section">
         <h3>Code Generation</h3>
-        <input
-          type="text"
-          value={task}
-          onChange={(e) => setTask(e.target.value)}
-          placeholder="Enter a task for code generation"
-        />
-        <input
-          type="text"
-          value={language}
-          onChange={(e) => setLanguage(e.target.value)}
-          placeholder="Enter programming language"
-        />
-        <button onClick={generateCode} disabled={loading}>Generate Code</button>
+        <div className="input-group">
+          <input
+            type="text"
+            value={task}
+            onChange={(e) => setTask(e.target.value)}
+            placeholder="Enter a task for code generation"
+            className="agent-input"
+          />
+          <input
+            type="text"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            placeholder="Enter programming language"
+            className="agent-input"
+          />
+          <button onClick={generateCode} disabled={loading} className="agent-button">
+            Generate Code
+          </button>
+        </div>
       </div>
-      <div>
+      <div className="agent-interface-section">
         <h3>Question Answering</h3>
-        <input
-          type="text"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Enter a question"
-        />
-        <button onClick={answerQuestion} disabled={loading}>Answer Question</button>
+        <div className="input-group">
+          <input
+            type="text"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Enter a question"
+            className="agent-input"
+          />
+          <button onClick={answerQuestion} disabled={loading} className="agent-button">
+            Answer Question
+          </button>
+        </div>
       </div>
-      {error && <div className="error">{error}</div>}
-      {loading && <div className="loading">Processing...</div>}
+      {error && <div className="error-message">{error}</div>}
+      {loading && <div className="loading-message">Processing...</div>}
       {result && (
-        <div>
+        <div className="result-section">
           <h3>Result</h3>
-          <pre>{result}</pre>
+          <pre className="result-content">{result}</pre>
         </div>
       )}
     </div>

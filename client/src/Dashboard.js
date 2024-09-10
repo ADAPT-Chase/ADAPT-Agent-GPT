@@ -35,11 +35,11 @@ function Dashboard() {
   };
 
   if (loading) {
-    return <div>Loading dashboard statistics...</div>;
+    return <div className="dashboard-loading">Loading dashboard statistics...</div>;
   }
 
   if (error) {
-    return <div className="error">{error}</div>;
+    return <div className="dashboard-error">{error}</div>;
   }
 
   return (
@@ -47,19 +47,37 @@ function Dashboard() {
       <h2>Dashboard</h2>
       <div className="stats-container">
         <div className="stat-card">
-          <h3>Tasks</h3>
-          <p>Total: {stats.totalTasks}</p>
-          <p>Completed: {stats.completedTasks}</p>
-          <p>Pending: {stats.pendingTasks}</p>
+          <h3>Tasks Overview</h3>
+          <div className="stat-item">
+            <span className="stat-label">Total Tasks:</span>
+            <span className="stat-value">{stats.totalTasks}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Completed Tasks:</span>
+            <span className="stat-value">{stats.completedTasks}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Pending Tasks:</span>
+            <span className="stat-value">{stats.pendingTasks}</span>
+          </div>
         </div>
         <div className="stat-card">
           <h3>AgentGPT Requests</h3>
-          <p>Analysis: {stats.analysisRequests}</p>
-          <p>Code Generation: {stats.codeGenerationRequests}</p>
-          <p>Question Answering: {stats.questionAnsweringRequests}</p>
+          <div className="stat-item">
+            <span className="stat-label">Analysis:</span>
+            <span className="stat-value">{stats.analysisRequests}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Code Generation:</span>
+            <span className="stat-value">{stats.codeGenerationRequests}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Question Answering:</span>
+            <span className="stat-value">{stats.questionAnsweringRequests}</span>
+          </div>
         </div>
       </div>
-      <button onClick={fetchDashboardStats}>Refresh Stats</button>
+      <button className="refresh-button" onClick={fetchDashboardStats}>Refresh Stats</button>
     </div>
   );
 }

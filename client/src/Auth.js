@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 
 function Auth({ onAuth }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -11,16 +10,15 @@ function Auth({ onAuth }) {
     e.preventDefault();
     setError('');
     try {
-      const response = await axios.post(`http://localhost:8000/${isLogin ? 'login' : 'register'}`, { username, password });
-      console.log(response.data);
-      if (response.data.access_token) {
-        localStorage.setItem('token', response.data.access_token);
-        onAuth(true);
-      } else {
-        setError('Authentication failed');
-      }
+      // For demonstration purposes, we'll simulate a successful auth for any input
+      // In a real app, you would make an API call to your backend here
+      console.log(`${isLogin ? 'Logging in' : 'Registering'} with:`, { username, password });
+      
+      // Simulate successful authentication
+      localStorage.setItem('token', 'dummy_token');
+      onAuth(true);
     } catch (err) {
-      setError(err.response?.data?.detail || 'An error occurred');
+      setError('An error occurred');
     }
   };
 
@@ -28,26 +26,34 @@ function Auth({ onAuth }) {
     <div className="auth-container">
       <h2>{isLogin ? 'Login' : 'Register'}</h2>
       <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit">{isLogin ? 'Login' : 'Register'}</button>
+        <div className="input-group">
+          <label htmlFor="username">Username</label>
+          <input
+            id="username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
+        </div>
+        <div className="input-group">
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        <button type="submit" className="auth-button">
+          {isLogin ? 'Login' : 'Register'}
+        </button>
       </form>
-      {error && <p className="error">{error}</p>}
-      <p>
+      {error && <p className="error-message">{error}</p>}
+      <p className="auth-toggle">
         {isLogin ? "Don't have an account? " : "Already have an account? "}
-        <button onClick={() => setIsLogin(!isLogin)}>
+        <button onClick={() => setIsLogin(!isLogin)} className="toggle-button">
           {isLogin ? 'Register' : 'Login'}
         </button>
       </p>

@@ -1,19 +1,26 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
-function NavBar({ isAuthenticated, onLogout }) {
+function NavBar({ onLogout }) {
+  const location = useLocation();
+
   return (
     <nav className="navbar">
-      <ul>
-        <li><Link to="/dashboard">Dashboard</Link></li>
-        <li><Link to="/agent">Agent Interface</Link></li>
-        <li><Link to="/tasks">Task Manager</Link></li>
-        {isAuthenticated ? (
-          <li><button onClick={onLogout}>Logout</button></li>
-        ) : (
-          <li><Link to="/login">Login</Link></li>
-        )}
-      </ul>
+      <div className="navbar-brand">
+        <Link to="/dashboard">ADAPT-Agent-GPT</Link>
+      </div>
+      <div className="navbar-links">
+        <Link to="/dashboard" className={location.pathname === '/dashboard' ? 'active' : ''}>
+          Dashboard
+        </Link>
+        <Link to="/agent" className={location.pathname === '/agent' ? 'active' : ''}>
+          Agent Interface
+        </Link>
+        <Link to="/tasks" className={location.pathname === '/tasks' ? 'active' : ''}>
+          Task Manager
+        </Link>
+        <button onClick={onLogout} className="logout-button">Logout</button>
+      </div>
     </nav>
   );
 }
