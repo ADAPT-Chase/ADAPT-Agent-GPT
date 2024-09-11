@@ -1,87 +1,65 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Link } from 'react-router-dom';
-import './Dashboard.css';
+import axios from 'axios';
 
-function Dashboard() {
-  const [taskSummary, setTaskSummary] = useState({
-    total: 0,
-    pending: 0,
-    inProgress: 0,
-    completed: 0
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
+const Dashboard = () => {
+  const [stats, setStats] = useState({
+    totalProjects: 0,
+    totalTasks: 0,
+    completedTasks: 0,
+    knowledgeEntries: 0
   });
-  const [recentTasks, setRecentTasks] = useState([]);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchStats();
   }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchStats = async () => {
     try {
-      const tasksResponse = await axios.get('/api/v1/tasks');
-      const tasks = tasksResponse.data;
-
-      // Calculate task summary
-      const summary = tasks.reduce((acc, task) => {
-        acc.total++;
-        acc[task.status]++;
-        return acc;
-      }, { total: 0, pending: 0, in_progress: 0, completed: 0 });
-
-      setTaskSummary(summary);
-
-      // Get 5 most recent tasks
-      const sortedTasks = tasks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      setRecentTasks(sortedTasks.slice(0, 5));
-    } catch (err) {
-      setError('Error fetching dashboard data');
-      console.error(err);
+      const response = await axios.get(`${API_URL}/stats`);
+      setStats(response.data);
+    } catch (error) {
+      console.error('Error fetching stats:', error);
     }
   };
 
-  if (error) {
-    return <div className="error">{error}</div>;
-  }
-
   return (
     <div className="dashboard">
-      <h2>Dashboard</h2>
-      <div className="task-summary">
-        <h3>Task Summary</h3>
-        <div className="summary-items">
-          <div className="summary-item">
-            <span className="label">Total Tasks:</span>
-            <span className="value">{taskSummary.total}</span>
-          </div>
-          <div className="summary-item">
-            <span className="label">Pending:</span>
-            <span className="value">{taskSummary.pending}</span>
-          </div>
-          <div className="summary-item">
-            <span className="label">In Progress:</span>
-            <span className="value">{taskSummary.in_progress}</span>
-          </div>
-          <div className="summary-item">
-            <span className="label">Completed:</span>
-            <span className="value">{taskSummary.completed}</span>
-          </div>
-        </div>
-      </div>
-      <div className="recent-tasks">
-        <h3>Recent Tasks</h3>
+      <h1>Welcome to ADAPT-Agent-GPT</h1>
+      <p>This is your central dashboard for managing and interacting with the ADAPT-Agent-GPT system.</p>
+      
+      <div className="dashboard-stats">
+        <h2>System Statistics</h2>
         <ul>
-          {recentTasks.map(task => (
-            <li key={task.id} className={`task-item ${task.status}`}>
-              <span className="task-title">{task.title}</span>
-              <span className="task-status">{task.status}</span>
-            </li>
-          ))}
+          <li>Total Projects: {stats.totalProjects}</li>
+          <li>Total Tasks: {stats.totalTasks}</li>
+          <li>Completed Tasks: {stats.completedTasks}</li>
+          <li>Knowledge Base Entries: {stats.knowledgeEntries}</li>
         </ul>
-        <Link to="/tasks" className="view-all-tasks">View All Tasks</Link>
+      </div>
+
+      <div className="dashboard-links">
+        <Link to="/agent" className="dashboard-link">
+          <h2>Agent Interface</h2>
+          <p>Interact with the AI agent, ask questions, and get assistance.</p>
+        </Link>
+        <Link to="/tasks" className="dashboard-link">
+          <h2>Task Manager</h2>
+          <p>View and manage your ongoing tasks.</p>
+        </Link>
+        <Link to="/projects" className="dashboard-link">
+          <h2>Project Manager</h2>
+          <p>Create and manage your projects.</p>
+        </Link>
+        <Link to="/knowledge" className="dashboard-link">
+          <h2>Knowledge Base</h2>
+          <p>Access and manage the system's knowledge base.</p>
+        </Link>
       </div>
     </div>
   );
-}
+};
 
 export default Dashboard;

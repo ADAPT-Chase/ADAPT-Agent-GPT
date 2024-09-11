@@ -1,81 +1,67 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import './Auth.css';
+import { useNavigate } from 'react-router-dom';
 
-function Auth({ onLogin }) {
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
+const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: ''
-  });
-  const [error, setError] = useState(null);
-  const [message, setMessage] = useState(null);
-
-  const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
-    setMessage(null);
+    setError('');
 
     try {
-      if (isLogin) {
-        const response = await axios.post('/api/v1/users/login', formData);
-        onLogin(response.data.token);
+      const endpoint = isLogin ? '/login' : '/signup';
+      const response = await axios.post(`${API_URL}${endpoint}`, { username, password });
+      
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        navigate('/dashboard');
       } else {
-        const response = await axios.post('/api/v1/users/register', formData);
-        setMessage(response.data.message);
+        setError('Authentication failed. Please try again.');
       }
-    } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred');
+    } catch (error) {
+      setError(error.response?.data?.message || 'An error occurred. Please try again.');
     }
   };
 
   return (
     <div className="auth-container">
-      <h2>{isLogin ? 'Login' : 'Register'}</h2>
-      {error && <div className="error">{error}</div>}
-      {message && <div className="message">{message}</div>}
+      <h2>{isLogin ? 'Login' : 'Sign Up'}</h2>
       <form onSubmit={handleSubmit}>
-        {!isLogin && (
+        <div>
+          <label htmlFor="username">Username:</label>
           <input
             type="text"
-            name="username"
-            value={formData.username}
-            onChange={handleInputChange}
-            placeholder="Username"
+            id="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             required
           />
-        )}
-        <input
-          type="email"
-          name="email"
-          value={formData.email}
-          onChange={handleInputChange}
-          placeholder="Email"
-          required
-        />
-        <input
-          type="password"
-          name="password"
-          value={formData.password}
-          onChange={handleInputChange}
-          placeholder="Password"
-          required
-        />
-        <button type="submit">{isLogin ? 'Login' : 'Register'}</button>
+        </div>
+        <div>
+          <label htmlFor="password">Password:</label>
+          <input
+            type="password"
+            id="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        <button type="submit">{isLogin ? 'Login' : 'Sign Up'}</button>
       </form>
-      <p>
-        {isLogin ? "Don't have an account? " : "Already have an account? "}
-        <button onClick={() => setIsLogin(!isLogin)}>
-          {isLogin ? 'Register' : 'Login'}
-        </button>
-      </p>
+      <button onClick={() => setIsLogin(!isLogin)}>
+        {isLogin ? 'Need an account? Sign Up' : 'Already have an account? Login'}
+      </button>
+      {error && <p className="error-message">{error}</p>}
     </div>
   );
-}
+};
 
 export default Auth;

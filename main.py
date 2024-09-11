@@ -1,64 +1,23 @@
-from fastapi import FastAPI, HTTPException, Depends, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseModel
-from passlib.context import CryptContext
-from jose import JWTError, jwt
-from datetime import datetime, timedelta
-from typing import Optional, List
-from agent import AgentGPT
 import os
-import uuid
-from databases import Database
-from sqlalchemy import create_engine, MetaData, Table, Column, String, Boolean, Integer, ForeignKey
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from typing import List, Optional
+from agent import AgentGPT
+from dotenv import load_dotenv
 
-# Database setup
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/adaptgpt")
-database = Database(DATABASE_URL)
-metadata = MetaData()
+# Import ADAPT-Agent-System components
+from Projects.ADAPT_Agent_System.database import engine, SessionLocal, Base
+from Projects.ADAPT_Agent_System.models import User, Project, Task, Knowledge
+from Projects.ADAPT_Agent_System.schemas import ProjectCreate, ProjectUpdate, KnowledgeCreate, KnowledgeUpdate
+from Projects.ADAPT_Agent_System.routes import user_router, project_router, task_router, knowledge_router
 
-# Define tables
-users = Table(
-    "users",
-    metadata,
-    Column("username", String, primary_key=True),
-    Column("hashed_password", String)
-)
-
-user_profiles = Table(
-    "user_profiles",
-    metadata,
-    Column("username", String, ForeignKey("users.username"), primary_key=True),
-    Column("full_name", String),
-    Column("email", String),
-    Column("bio", String)
-)
-
-tasks = Table(
-    "tasks",
-    metadata,
-    Column("id", String, primary_key=True),
-    Column("description", String),
-    Column("completed", Boolean),
-    Column("username", String, ForeignKey("users.username"))
-)
-
-stats = Table(
-    "stats",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("analysis_requests", Integer),
-    Column("code_generation_requests", Integer),
-    Column("question_answering_requests", Integer)
-)
-
-# Create tables
-engine = create_engine(DATABASE_URL)
-metadata.create_all(engine)
+load_dotenv()
 
 app = FastAPI()
 
-# Configure CORS
+# CORS middleware setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allows all origins
@@ -67,218 +26,92 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Initialize the AgentGPT
+agent = AgentGPT(api_key=os.getenv("OPENAI_API_KEY"))
 
-# JWT settings
-SECRET_KEY = "your-secret-key"  # Replace with a secure secret key
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+# Include ADAPT-Agent-System routers
+app.include_router(user_router, prefix="/api/users", tags=["users"])
+app.include_router(project_router, prefix="/api/projects", tags=["projects"])
+app.include_router(task_router, prefix="/api/tasks", tags=["tasks"])
+app.include_router(knowledge_router, prefix="/api/knowledge", tags=["knowledge"])
 
-# OAuth2 scheme
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-# User model
-class User(BaseModel):
-    username: str
-    password: str
-
-# Token model
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-# Task model
-class Task(BaseModel):
-    id: str
-    description: str
-    completed: bool
-
-class TaskCreate(BaseModel):
-    description: str
-
-# Code Generation model
-class CodeGeneration(BaseModel):
-    task: str
-    language: str
-
-# Question model
-class Question(BaseModel):
-    question: str
-
-# Dashboard Stats model
-class DashboardStats(BaseModel):
-    totalTasks: int
-    completedTasks: int
-    pendingTasks: int
-    analysisRequests: int
-    codeGenerationRequests: int
-    questionAnsweringRequests: int
-
-# User Profile model
-class UserProfile(BaseModel):
-    full_name: str
-    email: str
-    bio: str
-
-# Initialize AgentGPT
-agent = AgentGPT(os.getenv("OPENAI_API_KEY"))
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+# Dependency to get the database session
+def get_db():
+    db = SessionLocal()
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-    user = await database.fetch_one(users.select().where(users.c.username == username))
-    if user is None:
-        raise credentials_exception
-    return username
+        yield db
+    finally:
+        db.close()
 
 @app.on_event("startup")
 async def startup():
-    await database.connect()
-
-@app.on_event("shutdown")
-async def shutdown():
-    await database.disconnect()
-
-@app.post("/register")
-async def register(user: User):
-    query = users.select().where(users.c.username == user.username)
-    existing_user = await database.fetch_one(query)
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
-    hashed_password = pwd_context.hash(user.password)
-    query = users.insert().values(username=user.username, hashed_password=hashed_password)
-    await database.execute(query)
-    return {"message": "User registered successfully"}
-
-@app.post("/login")
-async def login(user: User):
-    query = users.select().where(users.c.username == user.username)
-    db_user = await database.fetch_one(query)
-    if not db_user:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-    if not pwd_context.verify(user.password, db_user["hashed_password"]):
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
+    # Create tables for ADAPT-Agent-System
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to ADAPT-Agent-GPT API"}
+    return {"message": "Welcome to the unified ADAPT platform"}
 
-@app.get("/tasks")
-async def get_tasks(current_user: str = Depends(get_current_user)):
-    query = tasks.select().where(tasks.c.username == current_user)
-    return {"tasks": await database.fetch_all(query)}
+# Project management endpoints
+@app.post("/api/projects", response_model=Project)
+async def create_project(project: ProjectCreate, db: SessionLocal = Depends(get_db)):
+    db_project = Project(**project.dict())
+    db.add(db_project)
+    await db.commit()
+    await db.refresh(db_project)
+    return db_project
 
-@app.post("/tasks")
-async def create_task(task: TaskCreate, current_user: str = Depends(get_current_user)):
-    task_id = str(uuid.uuid4())
-    query = tasks.insert().values(id=task_id, description=task.description, completed=False, username=current_user)
-    await database.execute(query)
-    return {"id": task_id, "description": task.description, "completed": False}
+@app.get("/api/projects/{project_id}", response_model=Project)
+async def read_project(project_id: int, db: SessionLocal = Depends(get_db)):
+    project = await db.query(Project).filter(Project.id == project_id).first()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
 
-@app.put("/tasks/{task_id}")
-async def update_task(task_id: str, task: Task, current_user: str = Depends(get_current_user)):
-    query = tasks.update().where(tasks.c.id == task_id).where(tasks.c.username == current_user).values(description=task.description, completed=task.completed)
-    result = await database.execute(query)
-    if result == 0:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return {"message": "Task updated successfully"}
+@app.put("/api/projects/{project_id}", response_model=Project)
+async def update_project(project_id: int, project: ProjectUpdate, db: SessionLocal = Depends(get_db)):
+    db_project = await db.query(Project).filter(Project.id == project_id).first()
+    if db_project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    update_data = project.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_project, key, value)
+    await db.commit()
+    await db.refresh(db_project)
+    return db_project
 
-@app.delete("/tasks/{task_id}")
-async def delete_task(task_id: str, current_user: str = Depends(get_current_user)):
-    query = tasks.delete().where(tasks.c.id == task_id).where(tasks.c.username == current_user)
-    result = await database.execute(query)
-    if result == 0:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return {"message": "Task deleted successfully"}
+# Knowledge management endpoints
+@app.post("/api/knowledge", response_model=Knowledge)
+async def create_knowledge(knowledge: KnowledgeCreate, db: SessionLocal = Depends(get_db)):
+    db_knowledge = Knowledge(**knowledge.dict())
+    db.add(db_knowledge)
+    await db.commit()
+    await db.refresh(db_knowledge)
+    return db_knowledge
 
-@app.get("/protected")
-async def protected_route(current_user: str = Depends(get_current_user)):
-    return {"message": f"Hello, {current_user}! This is a protected route."}
+@app.get("/api/knowledge/{knowledge_id}", response_model=Knowledge)
+async def read_knowledge(knowledge_id: int, db: SessionLocal = Depends(get_db)):
+    knowledge = await db.query(Knowledge).filter(Knowledge.id == knowledge_id).first()
+    if knowledge is None:
+        raise HTTPException(status_code=404, detail="Knowledge not found")
+    return knowledge
 
-@app.post("/analyze_task")
-async def analyze_task(task: TaskCreate, current_user: str = Depends(get_current_user)):
-    await database.execute(stats.update().values(analysis_requests=stats.c.analysis_requests + 1))
-    result = agent.analyze_task(task.description)
-    return result
+@app.put("/api/knowledge/{knowledge_id}", response_model=Knowledge)
+async def update_knowledge(knowledge_id: int, knowledge: KnowledgeUpdate, db: SessionLocal = Depends(get_db)):
+    db_knowledge = await db.query(Knowledge).filter(Knowledge.id == knowledge_id).first()
+    if db_knowledge is None:
+        raise HTTPException(status_code=404, detail="Knowledge not found")
+    update_data = knowledge.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_knowledge, key, value)
+    await db.commit()
+    await db.refresh(db_knowledge)
+    return db_knowledge
 
-@app.post("/generate_code")
-async def generate_code(code_gen: CodeGeneration, current_user: str = Depends(get_current_user)):
-    await database.execute(stats.update().values(code_generation_requests=stats.c.code_generation_requests + 1))
-    result = agent.generate_code(code_gen.task, code_gen.language)
-    return {"code": result}
+# Existing ADAPT-Agent-GPT endpoints
+# ... (keep all existing endpoints)
 
-@app.post("/answer_question")
-async def answer_question(question: Question, current_user: str = Depends(get_current_user)):
-    await database.execute(stats.update().values(question_answering_requests=stats.c.question_answering_requests + 1))
-    result = agent.answer_question(question.question)
-    return {"answer": result}
-
-@app.get("/dashboard", response_model=DashboardStats)
-async def get_dashboard_stats(current_user: str = Depends(get_current_user)):
-    tasks_query = tasks.select().where(tasks.c.username == current_user)
-    user_tasks = await database.fetch_all(tasks_query)
-    total_tasks = len(user_tasks)
-    completed_tasks = sum(1 for task in user_tasks if task["completed"])
-    pending_tasks = total_tasks - completed_tasks
-
-    stats_query = stats.select()
-    stats_data = await database.fetch_one(stats_query)
-
-    return DashboardStats(
-        totalTasks=total_tasks,
-        completedTasks=completed_tasks,
-        pendingTasks=pending_tasks,
-        analysisRequests=stats_data["analysis_requests"],
-        codeGenerationRequests=stats_data["code_generation_requests"],
-        questionAnsweringRequests=stats_data["question_answering_requests"]
-    )
-
-@app.get("/profile")
-async def get_profile(current_user: str = Depends(get_current_user)):
-    query = user_profiles.select().where(user_profiles.c.username == current_user)
-    profile = await database.fetch_one(query)
-    if profile:
-        return UserProfile(**profile)
-    else:
-        return {"message": "Profile not found"}
-
-@app.post("/profile")
-async def create_or_update_profile(profile: UserProfile, current_user: str = Depends(get_current_user)):
-    query = user_profiles.select().where(user_profiles.c.username == current_user)
-    existing_profile = await database.fetch_one(query)
-    if existing_profile:
-        query = user_profiles.update().where(user_profiles.c.username == current_user).values(**profile.dict())
-        await database.execute(query)
-        return {"message": "Profile updated successfully"}
-    else:
-        query = user_profiles.insert().values(username=current_user, **profile.dict())
-        await database.execute(query)
-        return {"message": "Profile created successfully"}
-
-# Add more endpoints as needed
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

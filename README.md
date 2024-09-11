@@ -12,6 +12,8 @@ ADAPT-Agent-GPT is an advanced AI agent platform integrated with ADAPT-Agent-Sys
 - API documentation with Swagger
 - Containerization with Docker
 - Continuous Integration and Deployment (CI/CD) with GitHub Actions
+- Support for both local and GCP resources
+- Throttled data migration to respect GCP rate limits
 
 ## Prerequisites
 
@@ -87,6 +89,12 @@ npm test
 
 ## Deployment to Google Cloud Platform (GCP)
 
+### Pre-Deployment Checklist
+
+Before deploying to GCP, please review and complete the `gcp_pre_deployment_checklist.md` file in the root directory. This checklist ensures you have set up all necessary GCP services and configurations.
+
+### Deployment Process
+
 The deployment process has been updated to allow for partial deployments, which is useful when dealing with rate limits or when you want to deploy specific components.
 
 1. Make sure you have authenticated with Google Cloud:
@@ -140,6 +148,25 @@ To migrate your local data to GCP:
    ```
 
 The migration script now includes throttling to respect GCP rate limits.
+
+## Testing GCP Connection
+
+To test your GCP connection and ensure all services are properly configured:
+
+```
+node testGcpConnection.js
+```
+
+This script will test connections to Cloud SQL, Firestore, and Vertex AI.
+
+## Local and GCP Resource Toggle
+
+You can toggle between using local resources and GCP resources by setting the `USE_LOCAL_RESOURCES` environment variable in your `.env` file:
+
+```
+USE_LOCAL_RESOURCES=true  # Use local resources
+USE_LOCAL_RESOURCES=false # Use GCP resources
+```
 
 ## Documentation
 

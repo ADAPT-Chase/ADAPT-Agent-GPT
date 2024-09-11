@@ -1,38 +1,32 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './NavBar.css';
 
-function NavBar({ isAuthenticated, onLogout, user }) {
+const NavBar = () => {
+  const navigate = useNavigate();
+  const isAuthenticated = localStorage.getItem('token') !== null;
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    navigate('/auth');
+  };
+
   return (
     <nav className="navbar">
-      <div className="navbar-brand">ADAPT-Agent-GPT</div>
-      <ul className="navbar-nav">
+      <ul>
+        <li><Link to="/">Dashboard</Link></li>
+        <li><Link to="/agent">Agent Interface</Link></li>
+        <li><Link to="/tasks">Task Manager</Link></li>
+        <li><Link to="/projects">Project Manager</Link></li>
+        <li><Link to="/knowledge">Knowledge Base</Link></li>
         {isAuthenticated ? (
-          <>
-            <li className="nav-item">
-              <Link to="/dashboard">Dashboard</Link>
-            </li>
-            <li className="nav-item">
-              <Link to="/tasks">Tasks</Link>
-            </li>
-            <li className="nav-item">
-              <Link to="/profile">Profile</Link>
-            </li>
-            <li className="nav-item">
-              <span className="user-info">Welcome, {user?.username}</span>
-            </li>
-            <li className="nav-item">
-              <button onClick={onLogout} className="logout-button">Logout</button>
-            </li>
-          </>
+          <li><button onClick={handleLogout}>Logout</button></li>
         ) : (
-          <li className="nav-item">
-            <Link to="/">Login / Register</Link>
-          </li>
+          <li><Link to="/auth">Login</Link></li>
         )}
       </ul>
     </nav>
   );
-}
+};
 
 export default NavBar;
