@@ -1,187 +1,106 @@
-# ADAPT-Agent-GPT
+# ADAPT Agent GPT
 
-ADAPT-Agent-GPT is an advanced AI agent platform integrated with ADAPT-Agent-System. It provides a powerful, scalable, and flexible environment for developing and deploying AI agents.
+ADAPT Agent GPT is a sophisticated AI-powered platform that integrates multiple databases and AI capabilities to provide a comprehensive solution for project management, task tracking, and knowledge management.
 
 ## Features
 
-- Full-stack application with Node.js backend and React frontend
-- Integration with ADAPT-Agent-System for enhanced AI capabilities
-- Deployment ready for Google Cloud Platform (GCP)
-- Scalable database solution using PostgreSQL
-- Real-time communication with Socket.IO
-- API documentation with Swagger
-- Containerization with Docker
-- Continuous Integration and Deployment (CI/CD) with GitHub Actions
-- Support for both local and GCP resources
-- Throttled data migration to respect GCP rate limits
+- User authentication and authorization
+- Project management
+- Task tracking
+- Knowledge base with vector search capabilities
+- AI-powered agent for various tasks
+
+## Technology Stack
+
+- Backend: FastAPI
+- Frontend: React
+- Databases:
+  - PostgreSQL (relational data)
+  - MongoDB (document storage)
+  - Redis (caching)
+  - Pinecone (vector database)
+  - AWS DynamoDB (user data)
+- AI: OpenAI GPT models
 
 ## Prerequisites
 
-- Node.js (v20 or later)
-- Python (v3.9 or later)
+- Python 3.8+
+- Node.js 14+
 - PostgreSQL
-- Google Cloud SDK (for deployment)
-- Docker (for containerization)
+- MongoDB
+- Redis
+- Pinecone account
+- AWS account with DynamoDB access
 
 ## Setup
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/ADAPT-Agent-GPT.git
-   cd ADAPT-Agent-GPT
+   git clone https://github.com/your-repo/adapt-agent-gpt.git
+   cd adapt-agent-gpt
    ```
 
-2. Install dependencies for the server:
+2. Set up a virtual environment and install dependencies:
    ```
-   cd server
-   npm install
-   ```
-
-3. Install dependencies for the client:
-   ```
-   cd ../client
-   npm install
+   python -m venv venv
+   source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+   pip install -r requirements.txt
    ```
 
-4. Set up your environment variables by creating a `.env` file in the server directory. Use the `.env.example` file as a template.
-
-5. Set up your GCP project and update the `.env` file with your GCP configurations.
-
-6. Run database migrations:
+3. Set up environment variables:
+   Create a `.env` file in the `server` directory with the following content:
    ```
-   cd ../server
-   npm run migrate
-   ```
-
-## Running the Integrated Platform
-
-To run the entire ADAPT platform (including ADAPT-Agent-GPT and ADAPT-Agent-System):
-
-```
-python run_adapt_platform.py
-```
-
-This script will start the server, client, and ADAPT-Agent-System components.
-
-## Development
-
-For development, you can run the server and client separately:
-
-1. Start the server:
-   ```
-   cd server
-   npm run dev
+   SECRET_KEY=your_secret_key_here
+   OPENAI_API_KEY=your_openai_api_key_here
+   DATABASE_URL=postgresql://user:password@localhost/adapt_agent_gpt
+   MONGO_URL=mongodb://localhost:27017
+   MONGO_DB_NAME=adapt_agent_gpt
+   REDIS_URL=redis://localhost:6379
+   PINECONE_API_KEY=your_pinecone_api_key_here
+   PINECONE_ENVIRONMENT=your_pinecone_environment_here
+   PINECONE_INDEX_NAME=your_pinecone_index_name_here
+   AWS_ACCESS_KEY_ID=your_aws_access_key_id_here
+   AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key_here
+   AWS_REGION=your_aws_region_here
+   ACCESS_TOKEN_EXPIRE_MINUTES=30
    ```
 
-2. Start the client:
+4. Initialize the databases:
+   ```
+   python server/database_setup.py
+   ```
+
+5. Start the backend server:
+   ```
+   uvicorn main:app --reload
+   ```
+
+6. Set up the frontend:
    ```
    cd client
+   npm install
+   ```
+
+7. Start the frontend development server:
+   ```
    npm start
    ```
 
-## Testing
+## Usage
 
-Run tests for the server:
-```
-cd server
-npm test
-```
-
-## Deployment to Google Cloud Platform (GCP)
-
-### Pre-Deployment Checklist
-
-Before deploying to GCP, please review and complete the `gcp_pre_deployment_checklist.md` file in the root directory. This checklist ensures you have set up all necessary GCP services and configurations.
-
-### Deployment Process
-
-The deployment process has been updated to allow for partial deployments, which is useful when dealing with rate limits or when you want to deploy specific components.
-
-1. Make sure you have authenticated with Google Cloud:
-   ```
-   gcloud auth login
-   ```
-
-2. Navigate to the server directory:
-   ```
-   cd server
-   ```
-
-3. Deploy using one of the following options:
-
-   - To deploy everything:
-     ```
-     ./deploy_to_gcp.sh --all
-     ```
-
-   - To deploy only the database:
-     ```
-     ./deploy_to_gcp.sh --db
-     ```
-
-   - To deploy only the application:
-     ```
-     ./deploy_to_gcp.sh --app
-     ```
-
-   - To set up only the secrets:
-     ```
-     ./deploy_to_gcp.sh --secrets
-     ```
-
-   You can also combine options, for example:
-   ```
-   ./deploy_to_gcp.sh --db --app
-   ```
-
-This new deployment process allows for more flexibility and helps manage rate limits by allowing you to deploy components separately.
-
-## Migrating Data to GCP
-
-To migrate your local data to GCP:
-
-1. Ensure your GCP configurations are correctly set in the `.env` file.
-
-2. Run the migration script:
-   ```
-   npm run migrate:gcp
-   ```
-
-The migration script now includes throttling to respect GCP rate limits.
-
-## Testing GCP Connection
-
-To test your GCP connection and ensure all services are properly configured:
-
-```
-node testGcpConnection.js
-```
-
-This script will test connections to Cloud SQL, Firestore, and Vertex AI.
-
-## Local and GCP Resource Toggle
-
-You can toggle between using local resources and GCP resources by setting the `USE_LOCAL_RESOURCES` environment variable in your `.env` file:
-
-```
-USE_LOCAL_RESOURCES=true  # Use local resources
-USE_LOCAL_RESOURCES=false # Use GCP resources
-```
-
-## Documentation
-
-- API documentation is available at `/api-docs` when the server is running.
-- For more detailed information about the server, client, or ADAPT-Agent-System, refer to their respective README files.
+Access the application by navigating to `http://localhost:3000` in your web browser. You can create an account, log in, and start using the various features of the ADAPT Agent GPT platform.
 
 ## Contributing
 
-Please read CONTRIBUTING.md for details on our code of conduct and the process for submitting pull requests.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-- ADAPT-Agent-System team for their collaboration and integration support.
-- All contributors who have helped shape and improve this project.
+- OpenAI for their GPT models
+- FastAPI for the efficient backend framework
+- React for the responsive frontend library
+- All the database providers for their powerful storage solutions
