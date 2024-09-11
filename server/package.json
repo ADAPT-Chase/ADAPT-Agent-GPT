@@ -4,8 +4,8 @@
   "description": "Backend server for ADAPT-Agent-GPT integrated with ADAPT-Agent-System",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "start": "node init && node server.js",
+    "dev": "node init && nodemon server.js",
     "test": "jest --runInBand --detectOpenHandles --forceExit",
     "test:watch": "jest --watch --runInBand --detectOpenHandles",
     "lint": "eslint .",
@@ -14,7 +14,7 @@
     "migrate:gcp": "node migrateToGCP.js",
     "deploy": "./deploy_to_gcp.sh",
     "setup:secrets": "./setup_gcp_secrets.sh",
-    "start:platform": "python ../run_adapt_platform.py"
+    "start:platform": "node init && python ../run_adapt_platform.py"
   },
   "dependencies": {
     "@google-cloud/aiplatform": "^2.0.0",

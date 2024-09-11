@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './KnowledgeBase.css';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 const KnowledgeBase = () => {
   const [entries, setEntries] = useState([]);
   const [newEntry, setNewEntry] = useState({ content: '', tags: '', model: 'gpt-3.5-turbo' });
   const [searchQuery, setSearchQuery] = useState('');
+  const [agentQuery, setAgentQuery] = useState('');
+  const [agentResponse, setAgentResponse] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [agentResponse, setAgentResponse] = useState('');
 
   useEffect(() => {
     fetchEntries();
@@ -68,7 +69,7 @@ const KnowledgeBase = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(`${API_URL}/agent/query`, {
-        query: searchQuery
+        query: agentQuery
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -118,18 +119,27 @@ const KnowledgeBase = () => {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search knowledge base or ask a question"
+          placeholder="Search knowledge base"
         />
         <button onClick={handleSearch}>Search</button>
-        <button onClick={handleAgentQuery}>Ask AI Agent</button>
       </div>
 
-      {agentResponse && (
-        <div className="agent-response">
-          <h3>AI Agent Response:</h3>
-          <p>{agentResponse}</p>
-        </div>
-      )}
+      <div className="agent-query">
+        <h2>Ask AI Agent</h2>
+        <input
+          type="text"
+          value={agentQuery}
+          onChange={(e) => setAgentQuery(e.target.value)}
+          placeholder="Ask a question"
+        />
+        <button onClick={handleAgentQuery}>Ask Agent</button>
+        {agentResponse && (
+          <div className="agent-response">
+            <h3>Agent Response:</h3>
+            <p>{agentResponse}</p>
+          </div>
+        )}
+      </div>
 
       <div className="knowledge-list">
         <h2>Knowledge Entries</h2>
