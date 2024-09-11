@@ -1,124 +1,79 @@
-/* General styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   font-family: Arial, sans-serif;
   line-height: 1.6;
-  margin: 0;
-  padding: 0;
+  color: #333;
   background-color: #f4f4f4;
 }
 
-.container {
-  width: 80%;
-  margin: auto;
-  overflow: hidden;
-  padding: 0 20px;
-}
-
-/* Navbar styles */
-.navbar {
-  background-color: #333;
-  color: #fff;
-  padding: 1rem;
-}
-
-.navbar ul {
+.App {
   display: flex;
-  list-style: none;
-  padding: 0;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
-.navbar li {
-  margin-right: 1rem;
-}
-
-.navbar a {
-  color: #fff;
-  text-decoration: none;
-}
-
-/* Dashboard styles */
-.dashboard {
-  text-align: center;
+.main-content {
+  flex: 1;
   padding: 2rem;
-}
-
-.dashboard-links {
-  display: flex;
-  justify-content: space-around;
-  margin-top: 2rem;
-}
-
-.dashboard-link {
-  background-color: #fff;
-  border-radius: 5px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  padding: 1rem;
-  text-decoration: none;
-  color: #333;
-  width: 30%;
-}
-
-/* AgentInterface styles */
-.agent-interface {
-  padding: 2rem;
-}
-
-.agent-interface input,
-.agent-interface button {
-  margin: 0.5rem 0;
-}
-
-/* TaskManager styles */
-.task-manager {
-  padding: 2rem;
-}
-
-.task-list {
-  list-style: none;
-  padding: 0;
-}
-
-.task-item {
-  background-color: #fff;
-  border-radius: 5px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  padding: 1rem;
-  margin-bottom: 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-/* Auth styles */
-.auth-container {
-  max-width: 400px;
-  margin: 2rem auto;
-  padding: 2rem;
-  background-color: #fff;
-  border-radius: 5px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-.auth-container input {
+  max-width: 1200px;
+  margin: 0 auto;
   width: 100%;
-  padding: 0.5rem;
+}
+
+h1, h2, h3, h4, h5, h6 {
   margin-bottom: 1rem;
 }
 
-.auth-container button {
-  width: 100%;
-  padding: 0.5rem;
-  background-color: #333;
+a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  cursor: pointer;
+  background-color: #007bff;
   color: #fff;
   border: none;
-  cursor: pointer;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
 }
 
-.message {
-  margin-top: 1rem;
+button:hover {
+  background-color: #0056b3;
+}
+
+input, textarea, select {
+  width: 100%;
   padding: 0.5rem;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  border-radius: 5px;
-  color: #721c24;
+  margin-bottom: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.error {
+  color: #dc3545;
+  margin-bottom: 1rem;
+}
+
+.success {
+  color: #28a745;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 1rem;
+  }
 }

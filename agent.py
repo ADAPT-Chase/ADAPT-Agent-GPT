@@ -1,140 +1,102 @@
 import openai
-from typing import List, Dict, Optional
-import time
-import json
-import requests
+from typing import List, Dict
+from server.database.database_manager import DatabaseManager
+import os
+from dotenv import load_dotenv
 
-class AgentGPT:
-    def __init__(self, api_key: str, model: str = "gpt-3.5-turbo", agent_system_url: str = "http://localhost:8000"):
-        openai.api_key = api_key
-        self.model = model
-        self.conversation_history = []
-        self.max_retries = 3
-        self.retry_delay = 1
-        self.agent_system_url = agent_system_url
+load_dotenv()
 
-    def _call_openai_api(self, messages: List[Dict[str, str]]) -> str:
-        for attempt in range(self.max_retries):
-            try:
-                response = openai.ChatCompletion.create(
-                    model=self.model,
-                    messages=messages
-                )
-                return response.choices[0].message['content'].strip()
-            except Exception as e:
-                if attempt == self.max_retries - 1:
-                    raise e
-                time.sleep(self.retry_delay)
+class ADAPTAgent:
+    def __init__(self):
+        self.db_manager = DatabaseManager(os.getenv("DATABASE_URL"))
+        openai.api_key = os.getenv("OPENAI_API_KEY")
 
-    def generate_response(self, prompt: str, system_message: Optional[str] = None) -> str:
-        messages = self.conversation_history.copy()
-        if system_message:
-            messages.insert(0, {"role": "system", "content": system_message})
-        messages.append({"role": "user", "content": prompt})
+    async def process_query(self, query: str, user_id: int) -> Dict[str, str]:
+        # Retrieve relevant knowledge
+        knowledge = self.db_manager.search_knowledge(query, user_id)
+        
+        # Prepare context from knowledge
+        context = self._prepare_context(knowledge)
 
-        response = self._call_openai_api(messages)
-        self.conversation_history.append({"role": "user", "content": prompt})
-        self.conversation_history.append({"role": "assistant", "content": response})
-        return response
+        # Generate response using GPT model
+        response = await self._generate_response(query, context)
 
-    def analyze_task(self, task: str) -> Dict[str, List[str]]:
-        system_message = "You are a task analysis expert. Break down the given task into clear, actionable steps."
-        prompt = f"Analyze the following task and provide a list of steps to complete it:\n\nTask: {task}\n\nSteps:"
-        response = self.generate_response(prompt, system_message)
-        steps = [step.strip() for step in response.split("\n") if step.strip()]
-        return {"steps": steps}
+        # Save the interaction as a new knowledge entry
+        self._save_interaction(query, response, user_id)
 
-    def generate_code(self, task: str, language: str) -> str:
-        system_message = f"You are an expert {language} programmer. Generate clean, efficient, and well-commented code."
-        prompt = f"Generate {language} code to accomplish the following task:\n\nTask: {task}\n\nCode:"
-        return self.generate_response(prompt, system_message)
+        return {"query": query, "response": response}
 
-    def answer_question(self, question: str) -> str:
-        system_message = "You are a knowledgeable assistant. Provide accurate and helpful answers to the user's questions."
-        prompt = f"Please answer the following question:\n\nQuestion: {question}\n\nAnswer:"
-        return self.generate_response(prompt, system_message)
+    def _prepare_context(self, knowledge: List[Dict]) -> str:
+        context = "Here's some relevant information:\n\n"
+        for entry in knowledge:
+            context += f"- {entry['content']} (Model: {entry['model']})\n"
+        return context
 
-    def clear_conversation_history(self):
-        self.conversation_history = []
+    async def _generate_response(self, query: str, context: str) -> str:
+        prompt = f"{context}\n\nUser query: {query}\n\nResponse:"
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an AI assistant for the ADAPT-Agent-GPT system. Use the provided context to answer the user's query."},
+                {"role": "user", "content": prompt}
+            ]
+        )
 
-    def save_conversation(self, filename: str):
-        with open(filename, 'w') as f:
-            json.dump(self.conversation_history, f)
+        return response.choices[0].message['content'].strip()
 
-    def load_conversation(self, filename: str):
-        with open(filename, 'r') as f:
-            self.conversation_history = json.load(f)
+    def _save_interaction(self, query: str, response: str, user_id: int):
+        content = f"Query: {query}\nResponse: {response}"
+        self.db_manager.create_knowledge_entry(content, "gpt-3.5-turbo", user_id, ["interaction"])
 
-    # ADAPT-Agent-System integration methods
+    async def create_task(self, project_id: int, task_description: str) -> Dict[str, str]:
+        # Generate task details using GPT model
+        prompt = f"Create a task with a title and description based on the following information: {task_description}"
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an AI assistant for the ADAPT-Agent-GPT system. Generate a task title and description based on the given information."},
+                {"role": "user", "content": prompt}
+            ]
+        )
 
-    def create_project(self, name: str, description: str) -> Dict:
-        url = f"{self.agent_system_url}/api/projects"
-        data = {
-            "name": name,
-            "description": description
-        }
-        response = requests.post(url, json=data)
-        return response.json()
+        task_details = response.choices[0].message['content'].strip().split("\n")
+        title = task_details[0].replace("Title: ", "")
+        description = "\n".join(task_details[1:]).replace("Description: ", "")
 
-    def get_project(self, project_id: int) -> Dict:
-        url = f"{self.agent_system_url}/api/projects/{project_id}"
-        response = requests.get(url)
-        return response.json()
+        # Create the task in the database
+        task_id = self.db_manager.create_task(title, description, project_id)
 
-    def create_task(self, project_id: int, title: str, description: str) -> Dict:
-        url = f"{self.agent_system_url}/api/tasks"
-        data = {
-            "project_id": project_id,
-            "title": title,
-            "description": description
-        }
-        response = requests.post(url, json=data)
-        return response.json()
+        return {"id": task_id, "title": title, "description": description}
 
-    def get_task(self, task_id: int) -> Dict:
-        url = f"{self.agent_system_url}/api/tasks/{task_id}"
-        response = requests.get(url)
-        return response.json()
+    async def analyze_project(self, project_id: int) -> Dict[str, str]:
+        # Retrieve project details and tasks
+        project = self.db_manager.get_project(project_id)
+        tasks = self.db_manager.get_tasks(project_id)
 
-    def update_task(self, task_id: int, status: str, completed: bool) -> Dict:
-        url = f"{self.agent_system_url}/api/tasks/{task_id}"
-        data = {
-            "status": status,
-            "completed": completed
-        }
-        response = requests.put(url, json=data)
-        return response.json()
+        # Prepare project summary
+        project_summary = f"Project: {project.name}\nDescription: {project.description}\n\nTasks:\n"
+        for task in tasks:
+            project_summary += f"- {task.title} (Status: {task.status})\n"
 
-    def add_knowledge(self, content: str, tags: List[str]) -> Dict:
-        url = f"{self.agent_system_url}/api/knowledge"
-        data = {
-            "content": content,
-            "tags": tags
-        }
-        response = requests.post(url, json=data)
-        return response.json()
+        # Generate analysis using GPT model
+        prompt = f"Analyze the following project and provide insights and recommendations:\n\n{project_summary}"
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an AI assistant for the ADAPT-Agent-GPT system. Analyze the given project and provide insights and recommendations."},
+                {"role": "user", "content": prompt}
+            ]
+        )
 
-    def search_knowledge(self, query: str) -> List[Dict]:
-        url = f"{self.agent_system_url}/api/knowledge/search"
-        params = {"query": query}
-        response = requests.get(url, params=params)
-        return response.json()
+        analysis = response.choices[0].message['content'].strip()
 
-# Usage example:
-# agent = AgentGPT("your-api-key-here")
-# task_analysis = agent.analyze_task("Create a function to calculate the fibonacci sequence")
-# print(task_analysis)
-# 
-# code = agent.generate_code("Create a function to calculate the fibonacci sequence", "Python")
-# print(code)
-# 
-# answer = agent.answer_question("What is the capital of France?")
-# print(answer)
-#
-# # Interacting with ADAPT-Agent-System
-# project = agent.create_project("My Project", "A sample project")
-# task = agent.create_task(project["id"], "Sample Task", "This is a sample task")
-# agent.update_task(task["id"], "In Progress", False)
-# agent.add_knowledge("The capital of France is Paris", ["geography", "France"])
-# search_results = agent.search_knowledge("capital of France")
-# print(search_results)
+        return {"project_id": project_id, "analysis": analysis}
+
+# Usage
+# agent = ADAPTAgent()
+# result = await agent.process_query("What is the status of Project X?", user_id)
+# task = await agent.create_task(project_id, "Implement user authentication")
+# analysis = await agent.analyze_project(project_id)

@@ -13,18 +13,37 @@ const NavBar = () => {
 
   return (
     <nav className="navbar">
-      <ul>
-        <li><Link to="/">Dashboard</Link></li>
-        <li><Link to="/agent">Agent Interface</Link></li>
-        <li><Link to="/tasks">Task Manager</Link></li>
-        <li><Link to="/projects">Project Manager</Link></li>
-        <li><Link to="/knowledge">Knowledge Base</Link></li>
-        {isAuthenticated ? (
-          <li><button onClick={handleLogout}>Logout</button></li>
-        ) : (
-          <li><Link to="/auth">Login</Link></li>
-        )}
-      </ul>
+      <div className="navbar-container">
+        <Link to="/" className="navbar-logo">ADAPT-Agent-GPT</Link>
+        <ul className="nav-menu">
+          {isAuthenticated ? (
+            <>
+              <li className="nav-item">
+                <Link to="/" className="nav-link">Dashboard</Link>
+              </li>
+              <li className="nav-item">
+                <Link to="/agent" className="nav-link">Agent Interface</Link>
+              </li>
+              <li className="nav-item">
+                <Link to="/tasks" className="nav-link">Task Manager</Link>
+              </li>
+              <li className="nav-item">
+                <Link to="/projects" className="nav-link">Project Manager</Link>
+              </li>
+              <li className="nav-item">
+                <Link to="/knowledge" className="nav-link">Knowledge Base</Link>
+              </li>
+              <li className="nav-item">
+                <button onClick={handleLogout} className="nav-link logout-btn">Logout</button>
+              </li>
+            </>
+          ) : (
+            <li className="nav-item">
+              <Link to="/auth" className="nav-link">Login</Link>
+            </li>
+          )}
+        </ul>
+      </div>
     </nav>
   );
 };
