@@ -1,61 +1,38 @@
-const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
+const getGcpConfig = require('./gcp_config');
 
-const secretClient = new SecretManagerServiceClient();
+module.exports = async () => {
+  const gcpConfig = await getGcpConfig();
 
-async function accessSecret(secretName) {
-  try {
-    const [version] = await secretClient.accessSecretVersion({
-      name: `projects/${process.env.GCP_PROJECT_ID}/secrets/${secretName}/versions/latest`,
-    });
-    return version.payload.data.toString();
-  } catch (error) {
-    console.error(`Error accessing secret ${secretName}:`, error);
-    return null;
-  }
-}
-
-async function getGcpConfig() {
   return {
-    dialect: 'postgres',
-    host: await accessSecret('postgres-host') || process.env.DB_HOST,
-    port: await accessSecret('postgres-port') || process.env.DB_PORT,
-    username: await accessSecret('postgres-user') || process.env.DB_USER,
-    password: await accessSecret('postgres-password') || process.env.DB_PASSWORD,
-    database: await accessSecret('postgres-database') || process.env.DB_NAME,
-    dialectOptions: {
-      socketPath: process.env.DB_SOCKET_PATH ? `${process.env.DB_SOCKET_PATH}/${process.env.CLOUD_SQL_CONNECTION_NAME}` : undefined,
-      ssl: {
-        require: true,
-        rejectUnauthorized: false
+    development: {
+      username: gcpConfig.CLOUD_SQL_USER,
+      password: gcpConfig.CLOUD_SQL_PASSWORD,
+      database: gcpConfig.CLOUD_SQL_DATABASE_NAME,
+      host: gcpConfig.CLOUD_SQL_INSTANCE_NAME,
+      dialect: 'postgres',
+      dialectOptions: {
+        socketPath: `/cloudsql/${gcpConfig.GCP_PROJECT_ID}:${gcpConfig.GCP_REGION}:${gcpConfig.CLOUD_SQL_INSTANCE_NAME}`
+      }
+    },
+    test: {
+      username: gcpConfig.CLOUD_SQL_USER,
+      password: gcpConfig.CLOUD_SQL_PASSWORD,
+      database: gcpConfig.CLOUD_SQL_DATABASE_NAME,
+      host: gcpConfig.CLOUD_SQL_INSTANCE_NAME,
+      dialect: 'postgres',
+      dialectOptions: {
+        socketPath: `/cloudsql/${gcpConfig.GCP_PROJECT_ID}:${gcpConfig.GCP_REGION}:${gcpConfig.CLOUD_SQL_INSTANCE_NAME}`
+      }
+    },
+    production: {
+      username: gcpConfig.CLOUD_SQL_USER,
+      password: gcpConfig.CLOUD_SQL_PASSWORD,
+      database: gcpConfig.CLOUD_SQL_DATABASE_NAME,
+      host: gcpConfig.CLOUD_SQL_INSTANCE_NAME,
+      dialect: 'postgres',
+      dialectOptions: {
+        socketPath: `/cloudsql/${gcpConfig.GCP_PROJECT_ID}:${gcpConfig.GCP_REGION}:${gcpConfig.CLOUD_SQL_INSTANCE_NAME}`
       }
     }
   };
-}
-
-const config = {
-  development: {
-    dialect: 'postgres',
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5432,
-    username: process.env.DB_USER || 'adapt_user',
-    password: process.env.DB_PASSWORD || 'adapt_password',
-    database: process.env.DB_NAME || 'adaptdb',
-  },
-  test: {
-    dialect: 'sqlite',
-    storage: ':memory:'
-  },
-  production: {
-    dialect: 'postgres',
-    use_env_variable: 'DATABASE_URL',
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false
-      }
-    }
-  },
-  gcp: getGcpConfig()
 };
-
-module.exports = config;

@@ -1,0 +1,103 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '20'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run linter
+      run: npm run lint
+      
+    - name: Run tests
+      run: npm test
+      env:
+        NODE_ENV: test
+        DB_USERNAME: postgres
+        DB_PASSWORD: postgres
+        DB_NAME: test_db
+        DB_HOST: localhost
+        DB_PORT: 5432
+        
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v0.2.1
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        export_default_credentials: true
+
+    - name: Configure Docker
+      run: |
+        gcloud auth configure-docker
+
+    - name: Build and push Docker image
+      env:
+        GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      run: |
+        docker build -t gcr.io/$GCP_PROJECT_ID/adapt-agent-gpt-server:${{ github.sha }} .
+        docker push gcr.io/$GCP_PROJECT_ID/adapt-agent-gpt-server:${{ github.sha }}
+
+    - name: Deploy to Cloud Run
+      env:
+        GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        GCP_REGION: ${{ secrets.GCP_REGION }}
+        CLOUD_SQL_CONNECTION_NAME: ${{ secrets.CLOUD_SQL_CONNECTION_NAME }}
+      run: |
+        gcloud run deploy adapt-agent-gpt-server \
+          --image gcr.io/$GCP_PROJECT_ID/adapt-agent-gpt-server:${{ github.sha }} \
+          --platform managed \
+          --region $GCP_REGION \
+          --allow-unauthenticated \
+          --set-env-vars "GCP_PROJECT_ID=$GCP_PROJECT_ID,CLOUD_SQL_CONNECTION_NAME=$CLOUD_SQL_CONNECTION_NAME" \
+          --add-cloudsql-instances $CLOUD_SQL_CONNECTION_NAME \
+          --set-secrets "/run/secrets/env_vars=/etc/secrets/env_vars:latest"
+
+    - name: Run database migrations
+      env:
+        GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        GCP_REGION: ${{ secrets.GCP_REGION }}
+        CLOUD_SQL_CONNECTION_NAME: ${{ secrets.CLOUD_SQL_CONNECTION_NAME }}
+      run: |
+        gcloud run jobs create migrate-db \
+          --image gcr.io/$GCP_PROJECT_ID/adapt-agent-gpt-server:${{ github.sha }} \
+          --set-cloudsql-instances $CLOUD_SQL_CONNECTION_NAME \
+          --set-env-vars "GCP_PROJECT_ID=$GCP_PROJECT_ID,CLOUD_SQL_CONNECTION_NAME=$CLOUD_SQL_CONNECTION_NAME" \
+          --set-secrets "/run/secrets/env_vars=/etc/secrets/env_vars:latest" \
+          --command "npm" \
+          --args "run,migrate"
+
+        gcloud run jobs execute migrate-db

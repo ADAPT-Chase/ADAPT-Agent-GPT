@@ -1,15 +1,17 @@
+'use strict';
+
 const express = require('express');
 const cors = require('cors');
-const { errorHandler } = require('./middleware/errorHandler');
-const userRoutes = require('./routes/users');
-const taskRoutes = require('./routes/tasks');
-const agentRoutes = require('./routes/agents');
-const projectRoutes = require('./routes/projects');
-const knowledgeRoutes = require('./routes/knowledge');
-const { sequelize } = require('./config/database');
-const swaggerUi = require('swagger-ui-express');
-const swaggerDocument = require('./swagger');
-const { setupMetrics } = require('./metrics');
+const { Sequelize } = require('sequelize');
+const Redis = require('ioredis');
+const { Firestore } = require('@google-cloud/firestore');
+const { PredictionServiceClient } = require('@google-cloud/aiplatform');
+const {
+  DATABASE_URL,
+  REDIS_URL,
+  GCP_PROJECT_ID,
+  FIRESTORE_COLLECTION
+} = require('./config/gcp_config');
 
 const app = express();
 
@@ -17,37 +19,54 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Setup Prometheus metrics
-setupMetrics(app);
+// Database setup
+const sequelize = new Sequelize(DATABASE_URL, {
+  dialect: 'postgres',
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false
+    }
+  }
+});
+
+// Redis setup
+const redis = new Redis(REDIS_URL);
+
+// Firestore setup
+const firestore = new Firestore({
+  projectId: GCP_PROJECT_ID,
+});
+
+// Vertex AI setup
+const vertexAI = new PredictionServiceClient();
+
+// Test database connection
+sequelize.authenticate()
+  .then(() => console.log('Database connected...'))
+  .catch(err => console.error('Error connecting to database:', err));
 
 // Routes
+const userRoutes = require('./routes/users');
+const taskRoutes = require('./routes/tasks');
+const agentRoutes = require('./routes/agents');
+const projectRoutes = require('./routes/projects');
+const knowledgeRoutes = require('./routes/knowledge');
+
 app.use('/api/users', userRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/agents', agentRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/knowledge', knowledgeRoutes);
 
-// Swagger documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-
 // Error handling middleware
-app.use(errorHandler);
+app.use((err, req, res, _next) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
+});
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
-async function startServer() {
-  try {
-    await sequelize.authenticate();
-    console.log('Database connection has been established successfully.');
-    
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-    });
-  } catch (error) {
-    console.error('Unable to connect to the database:', error);
-  }
-}
+app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
 
-startServer();
-
-module.exports = app; // For testing purposes
+module.exports = app;

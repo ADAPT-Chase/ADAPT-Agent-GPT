@@ -1,0 +1,16 @@
+{
+  "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/adapt_agent_gpt_db",
+  "LOCAL_DB_URL": "postgresql://postgres:postgres@localhost:5432/adapt_agent_gpt_db",
+  "REDIS_URL": "redis://localhost:6379",
+  "LOCAL_REDIS_URL": "redis://localhost:6379",
+  "GCP_PROJECT_ID": "your-gcp-project-id",
+  "GCP_REGION": "us-central1",
+  "CLOUD_SQL_INSTANCE_NAME": "your-cloud-sql-instance-name",
+  "FIRESTORE_COLLECTION": "adapt_agent_data",
+  "VERTEX_AI_ENDPOINT": "your-vertex-ai-endpoint",
+  "LOG_LEVEL": "info",
+  "ADAPT_AGENT_SYSTEM_PATH": "/home/x/ADAPT/Projects/ADAPT-Agent-System",
+  "ADAPT_AGENT_GPT_SERVER_PATH": "/home/x/ADAPT/Projects/ADAPT-Agent-GPT/server",
+  "ADAPT_AGENT_GPT_CLIENT_PATH": "/home/x/ADAPT/Projects/ADAPT-Agent-GPT/client",
+  "USE_LOCAL_RESOURCES": "false"
+}

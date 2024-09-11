@@ -1,7 +1,7 @@
 {
   "name": "adapt-agent-gpt-server",
   "version": "1.0.0",
-  "description": "Backend server for ADAPT-Agent-GPT",
+  "description": "Backend server for ADAPT-Agent-GPT integrated with ADAPT-Agent-System",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -9,7 +9,12 @@
     "test": "jest --runInBand --detectOpenHandles --forceExit",
     "test:watch": "jest --watch --runInBand --detectOpenHandles",
     "lint": "eslint .",
-    "migrate:gcp": "node migrateToGCP.js"
+    "migrate": "sequelize-cli db:migrate",
+    "migrate:undo": "sequelize-cli db:migrate:undo",
+    "migrate:gcp": "node migrateToGCP.js",
+    "deploy": "./deploy_to_gcp.sh",
+    "setup:secrets": "./setup_gcp_secrets.sh",
+    "start:platform": "python ../run_adapt_platform.py"
   },
   "dependencies": {
     "@google-cloud/aiplatform": "^2.0.0",

@@ -1,43 +1,29 @@
 const { Sequelize } = require('sequelize');
-const { DATABASE_URL } = require('./gcp_config');
+const env = process.env.NODE_ENV || 'development';
+const config = require('./config')[env];
 
-const sequelize = new Sequelize(DATABASE_URL, {
-  dialect: 'postgres',
-  dialectOptions: {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false
-    }
-  },
-  logging: false // Set to console.log to see the raw SQL queries
-});
+let sequelize;
 
-const db = {};
+if (config.use_env_variable) {
+  sequelize = new Sequelize(process.env[config.use_env_variable], config);
+} else {
+  sequelize = new Sequelize(config.database, config.username, config.password, {
+    host: config.host,
+    port: config.port,
+    dialect: config.dialect,
+    logging: false
+  });
+}
 
-db.Sequelize = Sequelize;
-db.sequelize = sequelize;
+async function testConnection() {
+  try {
+    await sequelize.authenticate();
+    console.log('Connection to the database has been established successfully.');
+  } catch (error) {
+    console.error('Unable to connect to the database:', error);
+  }
+}
 
-// Import models
-db.User = require('../models/User')(sequelize, Sequelize);
-db.Task = require('../models/Task')(sequelize, Sequelize);
-db.Agent = require('../models/Agent')(sequelize, Sequelize);
-db.Project = require('../models/Project')(sequelize, Sequelize);
-db.Knowledge = require('../models/Knowledge')(sequelize, Sequelize);
+testConnection();
 
-// Define associations
-db.User.hasMany(db.Task, { foreignKey: 'userId' });
-db.Task.belongsTo(db.User, { foreignKey: 'userId' });
-
-db.User.hasMany(db.Project, { foreignKey: 'userId' });
-db.Project.belongsTo(db.User, { foreignKey: 'userId' });
-
-db.Project.hasMany(db.Agent, { foreignKey: 'projectId' });
-db.Agent.belongsTo(db.Project, { foreignKey: 'projectId' });
-
-db.Project.hasMany(db.Knowledge, { foreignKey: 'projectId' });
-db.Knowledge.belongsTo(db.Project, { foreignKey: 'projectId' });
-
-db.Agent.hasMany(db.Knowledge, { foreignKey: 'agentId' });
-db.Knowledge.belongsTo(db.Agent, { foreignKey: 'agentId' });
-
-module.exports = db;
+module.exports = sequelize;
